@@ -12,7 +12,8 @@ modules run at the same time
 #include<iostream>
 #define IN
 #define OUT
-#define EXECUTE for_each(modules.begin(),modules.end(),[](AtomOperation* e){e->Process();});
+#define EXECUTE for_each(reg_set.begin(),reg_set.end(),[](AtomOperation* e){e->Process();});\
+                for_each(fun_set.begin(),fun_set.end(),[](AtomOperation* e){e->Process();});
 
 enum HW_TYPE {
     UNDEFINE,
@@ -44,16 +45,6 @@ public:
         memset(fan_in,0,a*sizeof(int));
         memset(fan_out,0,b*sizeof(int));
     }
-
-    void SetFuncunit(AtomOperation* func)
-    {
-        attached_func_unit = func;
-    }
-    AtomOperation* GetFuncunit()
-    {
-        return attached_func_unit;
-    }
-
     std::function<void()> _set_data;
     HW_TYPE GetType()
     {
@@ -93,17 +84,20 @@ class Connect {
 private:
     AtomOperation *m1;
     AtomOperation *m2;
+    int value;
     int num_port_in;
     int num_port_out;
 public:
+    Connect()
+    {
+        value=0;
+    }
     void _set()
     {    
-        m2->Input(num_port_in,m1->Output(num_port_out));
-        if(m2->GetType()==REGISTER)
-        {
-            m2->Input(0,m1->Output(num_port_out));
-        }
+         value=m1->fan_out[num_port_out];
+         m2->fan_in[num_port_in]=value;
     }
+       
     void operator()(AtomOperation *n1,AtomOperation *n2)
     {   
        
@@ -116,6 +110,7 @@ public:
         m1->_set_data=std::bind(&Connect::_set,this);
     }
 };
-using Modules = std::vector<AtomOperation*>;
-using Lines = Connect*;
-using Line = Connect;
+using RegisterSet = std::vector<AtomOperation*>;
+using FunctionUnitSet = std::vector<AtomOperation*>;
+using Wires = Connect*;
+using Wire = Connect;

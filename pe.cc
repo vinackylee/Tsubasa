@@ -2,7 +2,6 @@
 #include<iostream>
 using namespace std;
 
-
 class Mul:public AtomOperation
 {
 public:
@@ -12,8 +11,8 @@ public:
     }
     virtual void Process() override
     {
-        _set_data();
         fan_out[0]=fan_in[0]*fan_in[1];
+        _set_data();
     }
 };
 class Add:public AtomOperation
@@ -21,12 +20,12 @@ class Add:public AtomOperation
 public:
     Add():AtomOperation(2,1)
     {
-        type=MUL;
+        type=ADD;
     }
     virtual void Process() override
     {
-        _set_data();
         fan_out[0]=fan_in[0]+fan_in[1];
+        _set_data();
     }
 };
 class Register:public AtomOperation
@@ -39,19 +38,11 @@ public:
     }
     virtual void Process() override
     {   
-        _set_data();
-        if(attached_func_unit!=nullptr)
-            attached_func_unit->Process();
-
         for(int i=0;i<count_fan_out;i++)
         {
-                
-                if(attached_func_unit!=nullptr)
-                    fan_out[i] = attached_func_unit->Output(0);
-                else
-                    fan_out[i] = fan_in[0];
+            fan_out[i] = fan_in[0];
         }
-
+        _set_data();
     }
 };
 class Bobble:public Register
@@ -68,57 +59,54 @@ public:
 class PE:public AtomOperation
 {
 private:
-     Modules modules;
-     Lines   lines;
+     RegisterSet reg_set;
+     FunctionUnitSet fun_set;
+     Wires wires;
 public:
     PE():AtomOperation(2,1)
     { 
-         modules.push_back(new Register(1,1));
-         modules.push_back(new Register(1,1));
-         modules.push_back(new Register(1,1));
-         modules.push_back(new Register(1,1));
-         modules.push_back(new Register(1,1));
-         modules.push_back(new Register(1,2));
-         AtomOperation *mul = new Mul;
-         AtomOperation *add = new Add;
-         AtomOperation *bobble = new Bobble;
+        reg_set.push_back(new Register(1,1));
+        reg_set.push_back(new Register(1,1));
+        reg_set.push_back(new Register(1,1));
+        reg_set.push_back(new Register(1,1));
+        reg_set.push_back(new Register(1,1));
+        reg_set.push_back(new Register(1,2));
 
-         modules[2]->SetFuncunit(mul);
-         modules[3]->SetFuncunit(bobble);
-         modules[5]->SetFuncunit(add);
+        fun_set.push_back(new Mul);
+        fun_set.push_back(new Add);
 
-         lines = new Line[9];
-         lines[0](modules[0],modules[2]->GetFuncunit());
-         lines[1](modules[1],modules[2]->GetFuncunit());
-         lines[2](modules[2]->GetFuncunit(),modules[2]);
-         lines[3](modules[2],modules[3]->GetFuncunit());
-         lines[4](modules[3]->GetFuncunit(),modules[3]);
-         lines[5](modules[3],modules[5]->GetFuncunit());
-         lines[6](modules[4],modules[5]->GetFuncunit());
-         lines[7](modules[5]->GetFuncunit(),modules[5]);
-         lines[8](modules[5],modules[4]);
+        wires=new Wire[8];
+        wires[0](reg_set[0],fun_set[0]);
+        wires[1](reg_set[1],fun_set[0]);
+        wires[2](fun_set[0],reg_set[2]);
+        wires[3](reg_set[2],reg_set[3]);
+        wires[4](reg_set[3],fun_set[1]);
+        wires[5](reg_set[4],fun_set[1]);
+        wires[6](fun_set[1],reg_set[5]);
+        wires[7](reg_set[5],reg_set[4]);
     }
     virtual void Process()
     {
-        modules[0]->Input(0,fan_in[0]);
-        modules[1]->Input(0,fan_in[1]);
+        reg_set[0]->Input(0,fan_in[0]);
+        reg_set[1]->Input(0,fan_in[1]);
         EXECUTE;
-        fan_out[0]= modules[5]->GetFuncunit()->Output(0);
-        cout<<modules[3]->Output(0)<<' '<<modules[5]->GetFuncunit()->fan_in[0]<<' '<<modules[5]->GetFuncunit()->fan_in[1]
-        <<' '<<modules[5]->Output(0)<<' '<<modules[4]->fan_in[0]<<' '<<modules[4]->Output(0)<<std::endl;
-    }
+        fan_out[0]= reg_set[5]->Output(1);
+        /*
+        cout<<modules[3]->Output(0)<<' '<<modules[4]->GetFuncunit()->fan_in[0]<<' '<<modules[4]->GetFuncunit()->fan_in[1]
+        <<' '<<modules[4]->Output(0)<<' '<<modules[5]->fan_in[0]<<' '<<modules[5]->Output(0)<<std::endl;
+   */ }
 };
 
 int main()
 {  
     PE *pe=new PE;
-    for(int i=1;i<10;i++)
+    for(int i=1;i<50;i++)
     {
         pe->Input(0,i);
         pe->Input(1,i);
         pe->Process();
-
+         cout<<pe->Output(0)<<endl; 
     }
-   cout<<pe->Output(0)<<endl;    
+     
     return 0;
 }
